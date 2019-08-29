@@ -2,13 +2,17 @@ package main
 
 import "net/http"
 
-func ping(url string, c chan<- PingRequest) {
+func ping(id int, url string, c chan<- URLRequest) {
+	/*
+	 * ping - reads the head of http response, returns 1 if website
+	 * is reachable
+	 */
 	resp, err := http.Get(url)
-	p := PingRequest{url, 1}
+	p := URLRequest{id, url, -1}
 	if err != nil {
-	}
-	if resp.StatusCode == 200 {
-		p.result = 0
+		p.result = 404
+	} else {
+		p.result = resp.StatusCode
 	}
 	c <- p
 }
