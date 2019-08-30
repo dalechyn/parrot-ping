@@ -7,6 +7,7 @@ import
 	"strings"
 	"regexp"
 	"time"
+	"sync"
 )
 
 /*
@@ -34,10 +35,10 @@ func main() {
 				return
 			}
 			fmt.Println("parrot-watcher", version, ":")
-			fmt.Println("--list: show watching websites")
-			fmt.Println("--ping: ping website from list")
-			fmt.Println("--input: add a file as url source")
-			fmt.Println("--watch: watch on sites in url:delay format")
+			fmt.Println("--help: show help")
+			fmt.Println("-i or --input: add a file as url source")
+			fmt.Println("-p or --ping: ping website from list")
+			fmt.Println("-w or --watch: watch on sites in url:delay format")
 			fmt.Println("\t delay in sec")
 		},
 		"ping": func (pingArgs []string) {
@@ -51,7 +52,7 @@ func main() {
 			URLs := []string{}
 			for _, res := range parseURLs(pingArgs) {
 				if res.err != nil {
-					Warning("--ping: %s", res.err)
+					Warning("--ping: %s: %s", res.url, res.err)
 				} else {
 					URLs = append(URLs, res.url)
 				}
@@ -65,11 +66,12 @@ func main() {
 					outputReq <- ping(i, url)
 				}(i, url)
 			}
-			fmt.Println(outerURLs, len(URLs), len(outerURLs))
+			fmt.Printf("PING OUTPUT:\n\n")
 			for i := 0; i < len(URLs) + len(outerURLs); i++ {
 				res := <-outputReq
 				fmt.Printf("ID: %d | URL: %s | RES: %d\n", res.id, res.url, res.result)
 			}
+			print("\n\n")
 			close(outputReq)
 		},
 		"input": func (inputArgs []string) {
@@ -97,15 +99,20 @@ func main() {
 				},
 			}
 
+			var wg sync.WaitGroup
 			for _, arg := range inputArgs {
 				ext := getExtension(arg)
-				fmt.Println(ext)
-				if ext == "" {
-					Warning("--input wrong file extension, must be .{p, w}list")
+				if _, exists := extensionRouter[ext]; !exists {
+					Warning("--input wrong file extension, must be .{p,w}list")
 				} else {
-					go extensionRouter[getExtension(arg)](arg)
+					wg.Add(1)
+					go func(fileName string) {
+						defer wg.Done()
+						extensionRouter[ext](fileName)
+					}(arg)
 				}
 			}
+			wg.Wait()
 		},
 		"watch": func (watchArgs []string) {
 			/*
@@ -130,6 +137,7 @@ func main() {
 					}
 				}(watcher)
 			}
+			fmt.Printf("WATCH OUTPUT:\n\n")
 			for pingRes := range output {
 				fmt.Printf("Watcher %d | URL: %s | Result %d\n", pingRes.id,
 							pingRes.url, pingRes.result)

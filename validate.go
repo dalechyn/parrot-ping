@@ -1,18 +1,14 @@
 package main
 
 import (
-	"regexp"
-	"errors"
+	"net/url"
 )
 
-func ValidateURL(url string) error {
+func ValidateURL(link string) error {
 	/*
 	 * Checks the integrity of the URL
 	 */
-	 if !regexp.MustCompile(`^https?:\/\/.*\..*`).MatchString(url) {
-		return errors.New(`URL doesn't contain http/https protocol
-							or is bad`)
-	 }
-	 return nil
+	 _, err := url.ParseRequestURI(link)
+	 return err
 }
 

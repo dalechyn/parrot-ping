@@ -8,7 +8,7 @@ func ValidateAndFixURL(url string) URLValidation  {
 	if ValidateURL(url) != nil {
 		url := "http://" + url
 		if e := ValidateURL(url); e != nil {
-			return URLValidation{"", e}
+			return URLValidation{url, e}
 		} else {
 			return URLValidation{url, nil}
 		}
