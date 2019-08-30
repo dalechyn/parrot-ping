@@ -6,13 +6,15 @@ import
 	"os"
 	"strings"
 	"regexp"
+	"time"
 )
 
 /*
  * URLsources array by it's nature has always contain valid urls
  */
 
-var URLOthers []string
+var outerURLs []string
+var outerWatchers []WatchWorker
 
 func main() {
 	/*
@@ -22,9 +24,10 @@ func main() {
 	aliasRouter := map[string] string {
 		"p": "ping",
 		"i": "input",
+		"w": "watch",
 	}
 
-	argRouter := map[string] func ([]string) {
+	argRouter := map[string] func([]string) {
 		"help": func (helpArgs []string)  {
 			if len(helpArgs) != 0 {
 				Error(`--help doesn't take any arguments`)
@@ -45,10 +48,9 @@ func main() {
 
 			// fixing bar urls
 			outputURLs := make(chan URLValidation, len(pingArgs))
-			parseURLs(pingArgs, outputURLs)
 			URLs := []string{}
-			for i := 0; i < len(pingArgs); i++ {
-				if res := <-outputURLs; res.err != nil {
+			for _, res := range parseURLs(pingArgs) {
+				if res.err != nil {
 					Warning("--ping: %s", res.err)
 				} else {
 					URLs = append(URLs, res.url)
@@ -57,32 +59,51 @@ func main() {
 			close(outputURLs)
 
 			// making requests
-			outputReq := make(chan URLRequest, len(URLs) + len(URLOthers))
-			for i, url := range append(URLs, URLOthers...) {
-				go ping(i, url, outputReq)
+			outputReq := make(chan URLRequest, len(URLs) + len(outerURLs))
+			for i, url := range append(URLs, outerURLs...) {
+				go func(i int, url string) {
+					outputReq <- ping(i, url)
+				}(i, url)
 			}
-			for i := 0; i < len(URLs) + len(URLOthers); i++ {
+			fmt.Println(outerURLs, len(URLs), len(outerURLs))
+			for i := 0; i < len(URLs) + len(outerURLs); i++ {
 				res := <-outputReq
 				fmt.Printf("ID: %d | URL: %s | RES: %d\n", res.id, res.url, res.result)
 			}
+			close(outputReq)
 		},
 		"input": func (inputArgs []string) {
 			/*
 			 * provide path to list of files for next steps
 			 */
-			output := make(chan []URLValidation, len(inputArgs))
-
-			for _, arg := range inputArgs {
-				go parseURLsFromFile(arg, output)
+			extensionRouter := map[string] func(string) {
+				"plist": func (fileURL string) {
+					for _, url := range parseURLsFromFile(fileURL) {
+						if url.err != nil {
+							Warning("--input include .plist %s", url.err)
+						} else {
+							outerURLs = append(outerURLs, url.url)
+						}
+					}
+				},
+				"wlist": func (fileURL string) {
+					for _, watcher := range parseWatchersFromFile(fileURL) {
+						if watcher.err != nil {
+							Warning("--input include .wlist %s", watcher.err)
+						} else {
+							outerWatchers = append(outerWatchers, watcher)
+						}
+					}
+				},
 			}
 
-			for i := 0; i < len(inputArgs); i++ {
-				for _, url := range <-output {
-					if url.err != nil {
-						Warning("--input %s", url.err)
-					} else {
-						URLOthers = append(URLOthers, url.url)
-					}
+			for _, arg := range inputArgs {
+				ext := getExtension(arg)
+				fmt.Println(ext)
+				if ext == "" {
+					Warning("--input wrong file extension, must be .{p, w}list")
+				} else {
+					go extensionRouter[getExtension(arg)](arg)
 				}
 			}
 		},
@@ -91,16 +112,29 @@ func main() {
 			 * parses arguments and puts the program in the infinite
 			 * watch mode
 			 */
-			//watchList := []WatchWorker{}
-			workersChannel := make(chan WatchWorker, len(watchArgs))
-			parseWatchWorkers(watchArgs, workersChannel)
-			for i := 1; i < len(watchArgs); i++ {
-				if worker := <-workersChannel; worker.err != nil {
-				Warning("--watch %s", worker.err)
+			watchersValidated := []WatchWorker{}
+			for _, worker := range parseWatchers(watchArgs) {
+				if worker.err != nil {
+					Warning("--watch %s", worker.err)
 				} else {
-					// I will code that tommorow
+					watchersValidated = append(watchersValidated, worker)
 				}
 			}
+			output := make(chan URLRequest, len(watchersValidated))
+			for _, watcher := range append(watchersValidated, outerWatchers...) {
+				go func(watcher WatchWorker) {
+					for {
+						time.Sleep(time.Duration(watcher.delay) *
+									time.Second)
+						output <- ping(watcher.id, watcher.url)
+					}
+				}(watcher)
+			}
+			for pingRes := range output {
+				fmt.Printf("Watcher %d | URL: %s | Result %d\n", pingRes.id,
+							pingRes.url, pingRes.result)
+			}
+			close(output)
 		},
 	}
 

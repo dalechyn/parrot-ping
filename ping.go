@@ -2,7 +2,7 @@ package main
 
 import "net/http"
 
-func ping(id int, url string, c chan<- URLRequest) {
+func ping(id int, url string) URLRequest {
 	/*
 	 * ping - reads the head of http response, returns 1 if website
 	 * is reachable
@@ -14,6 +14,6 @@ func ping(id int, url string, c chan<- URLRequest) {
 	} else {
 		p.result = resp.StatusCode
 	}
-	c <- p
+	return p
 }
 

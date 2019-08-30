@@ -16,3 +16,16 @@ func ValidateAndFixURL(url string) URLValidation  {
 		return URLValidation{url, nil}
 	}
 }
+
+func getExtension(fileURL string) string {
+	var ext string
+	for i := len(fileURL) - 1; i >= 0; i-- {
+		if fileURL[i] != '.' {
+			// TODO: Find how to append to the beggining and not use this
+			ext = string(fileURL[i]) + ext
+		} else {
+			break
+		}
+	}
+	return ext
+}

@@ -14,7 +14,7 @@ type URLValidation struct {
 type WatchWorker struct {
 	id int
 	url string
-	delay float64
+	delay int
 	err error
 }
 
