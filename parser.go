@@ -7,6 +7,17 @@ import (
 	"errors"
 )
 
+func parseFile(fileURL string, func parseFunc (string) []interface{}) []interface {} {
+	content, err := ioutil.ReadFile(fileURL)
+
+	if err != nil {
+		return nil
+	}
+
+	formatted := strings.Split(strings.Join(strings.Fields(string(content)), " "),	" ")
+	return parseFunc(formatted)
+}
+
 func parseURLs(urls []string) []URLValidation {
 	/*
 	 * parses all providen urls concurrently
@@ -30,16 +41,7 @@ func parseURLsFromFile(fileURL string) []URLValidation {
 	 * reads the file and processes file content to the URL
 	 * format if the links in files are valid
 	 */
-	content, err := ioutil.ReadFile(fileURL)
-
-	if err != nil {
-		return nil
-	}
-
-	// trim and validate all URLs
-	URLs := strings.Split(strings.Join(strings.Fields(string(content)), " "),	" ")
-
-	return parseURLs(URLs)
+	return parseFile(fileURL, parseURLs)
 }
 
 func parseWatchers(watchArgs []string) []WatchWorker {
@@ -93,14 +95,47 @@ func parseWatchersFromFile(fileURL string) []WatchWorker {
 	/*
 	 * parses watchers from file, function name speaks for itself
 	 */
+	return parseFile(fileURL, parseWatchers)
+}
+
+func parseBridges(bridgeArgs []string) []Bridge {
+	res := make([]Bridge, len(bridgeArgs))
+	output := make(chan Bridge, len(bridgeArgs))
+	for _, arg := range bridgeArgs {
+		go func(i int, arg string) {
+			res := Bridge{"", "", nil, nil}
+			splitted := strings.Split(arg, ":")
+			if len(splitted) != 2 {
+				res.err = errors.New("Wrong argument: " + arg + "in --bridge")
+				output <- res
+			}
+			if _, exists := supportedBridges[splitted[0]]; !exists {
+				res.err = errors.New("Not supported bridge: " + splitted[0])
+				output <- res
+			}
+			res.bridgeType = splitted[0]
+			res.token = splitted[1]
+			output <- res
+		}
+	}
+	for i := 0; i < len(bridgeArgs); i++ {
+		res[i] = <-output
+	}
+	return res
+}
+
+func parseBridgesFromFile(fileURL string) []Bridge {
 	content, err := ioutil.ReadFile(fileURL)
 
 	if err != nil {
 		return nil
 	}
 
-	Watchers := strings.Split(strings.Join(strings.Fields(string(content)), " "),	" ")
+	Bridges := strings.Split(strings.Join(strings.Fields(string(content)), " "),	" ")
 
-	return parseWatchers(Watchers)
+	return parseBridges(Bridges)
 }
 
+func parseBridgesFromFile(fileURL string) []Bridge {
+	return parseFile(fileURL, parseBridges)
+}
