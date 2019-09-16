@@ -58,9 +58,9 @@ func parseWatchers(watchArgs []string) []WatchWorker {
 		go func(i int, arg string) {
 			res := WatchWorker{i, "", -1, nil}
 			// parsing urls and delays
-			splitted := strings.Split(arg, ":")
+			splitted := strings.Split(arg, "::")
 			if len(splitted) != 2 {
-				res.err = errors.New("Wrong argument: " + arg + "in --watch")
+				res.err = errors.New("Wrong argument: " + arg + " in --watch")
 				output <- res
 				return
 			}

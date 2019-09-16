@@ -24,7 +24,7 @@ func main() {
 	 */
 	aliasRouter := map[string] string {
 		"b": "bridge",
-		"i": "input",
+		"i": "include",
 		"p": "ping",
 		"w": "watch",
 	}
@@ -38,12 +38,12 @@ func main() {
 			fmt.Println("parrot-watcher", version, ":")
 			fmt.Println("--help: show help")
 			fmt.Println("-b or --bridge: pass messages to bridge")
-			fmt.Println("-i or --input: add a file as source, must have .{b,p,w}list extension")
+			fmt.Println("-i or --include: include a file as source, must have .{b,p,w}list extension")
 			fmt.Println("-p or --ping: ping website from list")
-			fmt.Println("-w or --watch: watch on sites in url:delay format")
+			fmt.Println("-w or --watch: watch on sites in url::delay format")
 			fmt.Println("\t delay in sec")
 		},
-		"input": func (inputArgs []string) {
+		"include": func (inputArgs []string) {
 			/*
 			 * provide path to list of files for next steps
 			 */
